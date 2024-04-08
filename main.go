@@ -35,6 +35,11 @@ var (
 
 func getPosts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	if len(posts) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "No posts found"})
+		return
+	}
 	json.NewEncoder(w).Encode(posts)
 }
 
@@ -47,7 +52,8 @@ func getPostById(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	http.NotFound(w, r)
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(map[string]string{"error": "Post not found"})
 }
 
 func createPost(w http.ResponseWriter, r *http.Request) {
@@ -55,6 +61,12 @@ func createPost(w http.ResponseWriter, r *http.Request) {
 	var post Post
 	if err := json.NewDecoder(r.Body).Decode(&post); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if post.Title == "" || post.Content == "" || post.Author == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Missing required post fields (title, content, author)"})
 		return
 	}
 
@@ -78,6 +90,12 @@ func updatePostById(w http.ResponseWriter, r *http.Request) {
 			posts = append(posts[:index], posts[index+1:]...)
 			var post Post
 			_ = json.NewDecoder(r.Body).Decode(&post)
+			// This check is usually done in the frontend
+			if post.Title == "" || post.Content == "" || post.Author == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]string{"error": "Missing required post fields (title, content, author)"})
+				return
+			}
 			post.ID = item.ID
 			posts = append(posts, post)
 			json.NewEncoder(w).Encode(post)
@@ -102,12 +120,36 @@ func deletePostById(w http.ResponseWriter, r *http.Request) {
 func getComments(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
+	postId, err := strconv.Atoi(params["postId"])
+	if err != nil {
+		http.Error(w, "Invalid post ID", http.StatusBadRequest)
+		return
+	}
+
+	postExists := false
+	for _, p := range posts {
+		if p.ID == postId {
+			postExists = true
+			break
+		}
+	}
+	if !postExists {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+
 	var postComments []Comment
 	for _, item := range comments {
-		if strconv.Itoa(item.PostID) == params["postId"] {
+		if item.PostID == postId {
 			postComments = append(postComments, item)
 		}
 	}
+
+	if len(postComments) == 0 {
+		json.NewEncoder(w).Encode(map[string]string{"message": "No comments found for this post"})
+		return
+	}
+
 	json.NewEncoder(w).Encode(postComments)
 }
 
@@ -120,12 +162,18 @@ func createComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var comment Comment
+
+	// This check is usually done in the frontend
+	// if comment.Content == "" || comment.Author == "" {
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	json.NewEncoder(w).Encode(map[string]string{"error": "Missing required post fields (content, author)"})
+	// 	return
+	// }
 	if err := json.NewDecoder(r.Body).Decode(&comment); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Find the highest ID among existing comments and increment by 1 for the new comment
 	maxID := 0
 	for _, c := range comments {
 		if c.ID > maxID {
@@ -139,6 +187,18 @@ func createComment(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(comment)
 }
 
+func notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(map[string]string{"error": "This route does not exist."})
+}
+
+func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusMethodNotAllowed)
+	json.NewEncoder(w).Encode(map[string]string{"error": "This method is not allowed for this route."})
+}
+
 func main() {
 	router := mux.NewRouter()
 
@@ -149,6 +209,9 @@ func main() {
 	router.HandleFunc("/posts/{id}", deletePostById).Methods("DELETE")
 	router.HandleFunc("/posts/{postId}/comments", getComments).Methods("GET")
 	router.HandleFunc("/posts/{postId}/comments", createComment).Methods("POST")
+
+	router.NotFoundHandler = http.HandlerFunc(notFoundHandler)
+	router.MethodNotAllowedHandler = http.HandlerFunc(methodNotAllowedHandler)
 
 	log.Println("Server listening on port 8000")
 	log.Fatal(http.ListenAndServe(":8000", router))
