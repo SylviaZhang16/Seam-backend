@@ -24,13 +24,17 @@ type Comment struct {
 }
 
 var (
-	posts    []Post    = []Post{}
-	comments []Comment = []Comment{}
+	posts []Post = []Post{
+		{ID: 1, Title: "Sample Post 1", Content: "This is the first sample post.", Author: "Author 1"},
+		{ID: 2, Title: "Sample Post 2", Content: "This is the second sample post.", Author: "Author 2"},
+	}
+	comments []Comment = []Comment{
+		{ID: 1, PostID: 1, Content: "This is a sample comment on the first post.", Author: "Commenter One"},
+	}
 )
 
 func getPosts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	posts := []string{"Post 1", "Post 2"}
 	json.NewEncoder(w).Encode(posts)
 }
 
@@ -49,8 +53,19 @@ func getPostById(w http.ResponseWriter, r *http.Request) {
 func createPost(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var post Post
-	_ = json.NewDecoder(r.Body).Decode(&post)
-	post.ID = len(posts) + 1 // Mock ID
+	if err := json.NewDecoder(r.Body).Decode(&post); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	maxID := 0
+	for _, p := range posts {
+		if p.ID > maxID {
+			maxID = p.ID
+		}
+	}
+	post.ID = maxID + 1
+
 	posts = append(posts, post)
 	json.NewEncoder(w).Encode(post)
 }
@@ -99,11 +114,27 @@ func getComments(w http.ResponseWriter, r *http.Request) {
 func createComment(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
-	postId, _ := strconv.Atoi(params["postId"])
+	postId, err := strconv.Atoi(params["postId"])
+	if err != nil {
+		http.Error(w, "Invalid post ID", http.StatusBadRequest)
+		return
+	}
 	var comment Comment
-	_ = json.NewDecoder(r.Body).Decode(&comment)
-	comment.ID = len(comments) + 1
+	if err := json.NewDecoder(r.Body).Decode(&comment); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Find the highest ID among existing comments and increment by 1 for the new comment
+	maxID := 0
+	for _, c := range comments {
+		if c.ID > maxID {
+			maxID = c.ID
+		}
+	}
+	comment.ID = maxID + 1
 	comment.PostID = postId
+
 	comments = append(comments, comment)
 	json.NewEncoder(w).Encode(comment)
 }
