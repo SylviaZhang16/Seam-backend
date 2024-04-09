@@ -41,17 +41,20 @@ Below are the endpoints available in this API:
 - **Get All Posts**
 
   - `GET /posts`
-  - Retrieves a list of all posts.
+  - Retrieve a list of all blog posts.
 
 - **Get a Post by ID**
 
   - `GET /posts/{id}`
-  - Retrieves a specific post by its ID.
+  - Retrieves a specific blog post by its ID.
+  - Parameter: id (integer) - The unique identifier of the blog post.
+  - Response: Array of a single blog post objects.
 
 - **Create a New Post**
 
   - `POST /posts`
-  - Creates a new post. Example request body:
+  - Creates a blog new post.
+  - Request Body: Blog post object (title, content, author). Example request body:
     ```json
     {
       "title": "Post Title",
@@ -59,11 +62,14 @@ Below are the endpoints available in this API:
       "author": "Author Name"
     }
     ```
+  - Response: The created blog post object with its assigned ID.
 
 - **Update a Post by ID**
 
   - `PUT /posts/{id}`
-  - Updates the specified post. Example request body:
+  - Update an existing blog post by its ID.
+  - Parameter: id (integer) - The unique identifier of the blog post.
+  - Request Body: Updated blog post object (title, content, author).Example request body:
     ```json
     {
       "title": "Updated Title",
@@ -71,23 +77,31 @@ Below are the endpoints available in this API:
       "author": "Author Name"
     }
     ```
+  - Response: The updated blog post object.
 
 - **Delete a Post by ID**
 
   - `DELETE /posts/{id}`
-  - Deletes the specified post.
+  - Deletes a blog post by its ID.
+  - Parameter: id (integer) - The unique identifier of the blog post.
+  - Response: Success message or status.
 
 - **Get Comments for a Post**
 
   - `GET /posts/{postId}/comments`
-  - Retrieves all comments for the specified post.
+  - Retrieves all comments for a specified blog post.
+  - Parameter: postId (integer) - The unique identifier of the blog post.
+  - Response: Array of comment objects.
 
 - **Create a Comment for a Post**
   - `POST /posts/{postId}/comments`
-  - Adds a new comment to the specified post. Example request body:
+  - Adds a new comment to a specified blog post.
+  - Parameter: postId (integer) - The unique identifier of the blog post.
+  - Request Body: Comment object (content, author).Example request body:
     ```json
     {
       "content": "Comment content",
       "author": "Author Name"
     }
     ```
+  - Response: The created comment object with its assigned ID.
